@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 
 import scenaBackground from '@/assets/scenes/scena1_back.svg'
 import scenaBackground2 from '@/assets/scenes/scena1_back2.svg'
@@ -9,7 +9,7 @@ import { useGameStatus } from '@/context/GameStatusContext'
 const portalRoot = document.getElementById('portal-root')
 
 import './GameBackground.scss'
-export function GameBackground() {
+function GameBackgroundInner() {
   const { status } = useGameStatus()
 
   const [loaded, setLoaded] = useState(false)
@@ -67,3 +67,4 @@ export function GameBackground() {
     portalRoot
   )
 }
+export const GameBackground = memo(GameBackgroundInner)

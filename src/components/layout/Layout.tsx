@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { useLocation } from 'react-router-dom'
 
 import { GameBackground } from '@/components/game/layout/GameBackground'
 import { AppNav } from '@/components/ui/app-nav/AppNav'
@@ -12,18 +11,16 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { pathname } = useLocation()
-
   return (
-    <GameStatusProvider key={pathname}>
+    <GameStatusProvider>
       <div className="layout">
         <GameBackground />
         <Header />
         <AppNav />
         <main className="layout__main">
-          <div  className="layout__background">
-          <h1 className="game-page__title">Упорядочивание цифр</h1>
-          {children}
+          <div className="layout__background">
+            <h1 className="game-page__title">Упорядочивание цифр</h1>
+            {children}
           </div>
         </main>
       </div>
