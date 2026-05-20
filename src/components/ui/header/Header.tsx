@@ -1,3 +1,4 @@
+import logoUrl from '@/assets/happy-logo.svg'
 import './Header.scss'
 
 export function Header() {
@@ -6,7 +7,7 @@ export function Header() {
       <div className="header__inner">
         <img
           className="header__logo"
-          src="/happy-logo.svg"
+          src={logoUrl}
           alt="Happy Numbers"
           width={203}
           height={40}
