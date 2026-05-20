@@ -1,0 +1,10 @@
+.native-dnd-board--dragging {
+  .dnd-card {
+    transition: none;
+  }
+
+  .dnd-card--dragging {
+    position: relative;
+    z-index: 2;
+  }
+}

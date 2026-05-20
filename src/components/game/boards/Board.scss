@@ -1,0 +1,26 @@
+.board {
+  margin-bottom: 32px;
+}
+
+.board__title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #4a4a68;
+}
+
+.board__list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.board__list--playfield {
+  touch-action: none;
+  user-select: none;
+}
+
+.board__list--locked {
+  pointer-events: none;
+}

@@ -1,0 +1,13 @@
+.game-message {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+
+  &--success {
+    color: #1a8f4a;
+  }
+
+  &--fail {
+    color: #c0392b;
+  }
+}

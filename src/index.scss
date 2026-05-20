@@ -1,0 +1,30 @@
+@use '@/assets/fonts/style.css';
+
+:root {
+  --color-primary-base: #765fde;
+  --color-primary-hover: #634ad6;
+  --color-primary-active: #5137c7;
+  --button-primary-base: #5137c7;
+  font-size: 10px;
+}
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Factor A', sans-serif;
+  background: #f4f5f6;
+  color: white;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+}

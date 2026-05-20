@@ -1,0 +1,17 @@
+.header {
+  border-bottom: 1px solid rgba(9, 21, 38, 0.15);
+  background: #5c42c5;
+
+  &__inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px;
+    display: flex;
+    justify-content: flex-start;
+  }
+  &__logo {
+    display: block;
+    height: 40px;
+    width: auto;
+  }
+}

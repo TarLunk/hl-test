@@ -1,0 +1,9 @@
+@font-face {
+    font-family: 'Factor A';
+    src: local('Factor A Regular'), local('Factor-A-Regular'),
+        url('FactorA-Regular.woff2') format('woff2'),
+        url('FactorA-Regular.woff') format('woff'),
+        url('FactorA-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+  }

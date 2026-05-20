@@ -1,0 +1,55 @@
+.app-nav {
+
+  margin-top: 16px;}
+
+.app-nav__inner {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 32px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  background: white;
+  width: fit-content;
+  border-radius: 50px;
+}
+
+.app-nav__link {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  position: relative;
+  color: #4a4a68;
+  background: white;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+  border: 1px #ffffff00 solid;
+}
+
+.app-nav__link::after {
+  position: absolute;
+  top: -16px;
+  right: 20px;
+  content: '';
+  width: 40px;
+  height: 20px;
+  background-image: url(https://static.uchi.ru/files/profile/students/main-page/dino-on-plate.svg);
+  opacity: 0;
+  transition: opacity 250ms ease-in-out;
+}
+
+.app-nav__link:hover::after {
+  opacity: 1;
+}
+.app-nav__link--not-active:hover {
+  color: var(--color-primary-hover);
+  border: 1px var(--color-primary-hover) solid;
+}
+.app-nav__link--active {
+  color: var(--color-primary-active);
+  border: 2px var(--color-primary-active) solid;
+
+}
