@@ -4,7 +4,6 @@ import { Board } from '@/components/game/boards/Board'
 import {
   NativeDndProvider,
   useNativeDndActions,
-  useNativeDndVisual,
 } from '@/context/NativeDndContext'
 
 import './NativeDndBoard.scss'
@@ -24,13 +23,9 @@ function NativeDndBoardInner({
   isLocked: boolean
 }) {
   const { containerRef } = useNativeDndActions()
-  const { dragSession } = useNativeDndVisual()
 
   return (
-    <div
-      ref={containerRef}
-      className={dragSession ? 'native-dnd-board--dragging' : undefined}
-    >
+    <div ref={containerRef}>
       <Board variant="playfield" isLocked={isLocked}>
         {children}
       </Board>
@@ -38,7 +33,7 @@ function NativeDndBoardInner({
   )
 }
 
-const MemoNativeDndBoardInner = memo(NativeDndBoardInner)
+export const MemoNativeDndBoardInner = memo(NativeDndBoardInner)
 
 export function NativeDndBoard({
   children,

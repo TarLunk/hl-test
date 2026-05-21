@@ -1,7 +1,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -20,10 +19,11 @@ const GameStatusContext = createContext<GameStatusContextValue | null>(null)
 export function GameStatusProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const [status, setStatus] = useState<GameStatusType>('init')
-
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname)
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname)
     setStatus('init')
-  }, [pathname])
+  }
 
   const value = useMemo(() => ({ status, setStatus }), [status])
 

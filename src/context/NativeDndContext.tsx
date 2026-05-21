@@ -5,7 +5,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
   type ReactNode,
   type RefObject,
 } from 'react'
@@ -25,43 +24,31 @@ export type DragSession = {
   layoutRects: DOMRect[]
 } | null
 
-type NativeDndActionsContextValue = {
+type NativeDndContextValue = {
   containerRef: RefObject<HTMLDivElement | null>
   startDrag: (index: number, e: React.PointerEvent<HTMLDivElement>) => void
   registerCard: (index: number, el: HTMLDivElement | null) => void
   consumeSuppressClick: () => boolean
 }
 
-type NativeDndVisualContextValue = {
-  dragSession: DragSession
-  overIndex: number | null
-  getShift: (index: number, isDragging: boolean) => number
-}
-
-const NativeDndActionsContext =
-  createContext<NativeDndActionsContextValue | null>(null)
-const NativeDndVisualContext =
-  createContext<NativeDndVisualContextValue | null>(null)
+const NativeDndContext = createContext<NativeDndContextValue | null>(null)
 
 export function useNativeDndActions() {
-  const ctx = useContext(NativeDndActionsContext)
+  const ctx = useContext(NativeDndContext)
   if (!ctx) {
     throw new Error('useNativeDndActions must be used within NativeDndProvider')
   }
   return ctx
 }
 
+/** @deprecated Use useNativeDndActions */
 export function useNativeDndVisual() {
-  const ctx = useContext(NativeDndVisualContext)
-  if (!ctx) {
-    throw new Error('useNativeDndVisual must be used within NativeDndProvider')
-  }
-  return ctx
+  return useNativeDndActions()
 }
 
-/** @deprecated Prefer useNativeDndActions + useNativeDndVisual */
+/** @deprecated Use useNativeDndActions */
 export function useNativeDnd() {
-  return { ...useNativeDndActions(), ...useNativeDndVisual() }
+  return useNativeDndActions()
 }
 
 type ProviderProps = {
@@ -78,21 +65,13 @@ export function NativeDndProvider({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const cardsRef = useRef<Map<number, HTMLDivElement>>(new Map())
   const draggingElRef = useRef<HTMLDivElement | null>(null)
-  const currentYRef = useRef(0)
+  const dragSessionRef = useRef<DragSession>(null)
   const overIndexRef = useRef<number | null>(null)
-
-  const [dragSession, setDragSession] = useState<DragSession>(null)
-  const [overIndex, setOverIndex] = useState<number | null>(null)
-  const dragSessionRef = useRef(dragSession)
   const suppressClickRef = useRef(false)
-
-  useEffect(() => {
-    dragSessionRef.current = dragSession
-  }, [dragSession])
-
-  useEffect(() => {
-    overIndexRef.current = overIndex
-  }, [overIndex])
+  const pointerListenersRef = useRef<{
+    move: (e: PointerEvent) => void
+    end: (e: PointerEvent) => void
+  } | null>(null)
 
   const consumeSuppressClick = useCallback(() => {
     const suppress = suppressClickRef.current
@@ -120,27 +99,85 @@ export function NativeDndProvider({
     el.style.transition = 'none'
   }, [])
 
-  const clearDragTransform = useCallback(() => {
-    const el = draggingElRef.current
-    if (el) {
-      el.style.transform = ''
-      el.style.transition = ''
+  const applyCardShifts = useCallback(
+    (session: NonNullable<DragSession>, overIndex: number) => {
+      const { fromIndex, itemStride } = session
+      cardsRef.current.forEach((el, index) => {
+        if (index === fromIndex) return
+        const shift = getCardShift(
+          index,
+          fromIndex,
+          overIndex,
+          itemStride,
+          0,
+          false
+        )
+        el.style.transform = shift !== 0 ? `translateY(${shift}px)` : ''
+        el.classList.toggle('dnd-card--shifted', shift !== 0)
+      })
+    },
+    []
+  )
+
+  const clearDragVisuals = useCallback(() => {
+    const draggingEl = draggingElRef.current
+    if (draggingEl) {
+      draggingEl.style.transform = ''
+      draggingEl.style.transition = ''
+      draggingEl.classList.remove('dnd-card--dragging')
+      draggingEl.removeAttribute('aria-grabbed')
     }
     draggingElRef.current = null
+
+    cardsRef.current.forEach((el) => {
+      el.style.transform = ''
+      el.style.transition = ''
+      el.classList.remove('dnd-card--shifted')
+    })
+
+    containerRef.current?.classList.remove('native-dnd-board--dragging')
+    dragSessionRef.current = null
+    overIndexRef.current = null
   }, [])
 
-  const updateOverIndex = useCallback((session: NonNullable<DragSession>, y: number) => {
-    const next = getDropIndex(
-      y,
-      session.layoutRects[0].top,
-      session.itemStride,
-      session.layoutRects.length
-    )
-    if (next !== overIndexRef.current) {
-      overIndexRef.current = next
-      setOverIndex(next)
-    }
+  const removePointerListeners = useCallback(() => {
+    const listeners = pointerListenersRef.current
+    if (!listeners) return
+    window.removeEventListener('pointermove', listeners.move)
+    window.removeEventListener('pointerup', listeners.end)
+    window.removeEventListener('pointercancel', listeners.end)
+    pointerListenersRef.current = null
   }, [])
+
+  const updateOverIndex = useCallback(
+    (session: NonNullable<DragSession>, y: number) => {
+      const next = getDropIndex(
+        y,
+        session.layoutRects[0].top,
+        session.itemStride,
+        session.layoutRects.length
+      )
+      if (next !== overIndexRef.current) {
+        overIndexRef.current = next
+        applyCardShifts(session, next)
+      }
+    },
+    [applyCardShifts]
+  )
+
+  const finishDrag = useCallback(
+    (session: NonNullable<DragSession>, toIndex: number) => {
+      if (session.fromIndex !== toIndex) {
+        moveCard(session.fromIndex, toIndex)
+      }
+
+      const el = cardsRef.current.get(session.fromIndex)
+      if (el?.hasPointerCapture(session.pointerId)) {
+        el.releasePointerCapture(session.pointerId)
+      }
+    },
+    [moveCard]
+  )
 
   const startDrag = useCallback(
     (index: number, e: React.PointerEvent<HTMLDivElement>) => {
@@ -159,7 +196,6 @@ export function NativeDndProvider({
       draggingElRef.current = target
 
       const startY = e.clientY
-      currentYRef.current = startY
 
       const session: NonNullable<DragSession> = {
         fromIndex: index,
@@ -170,7 +206,9 @@ export function NativeDndProvider({
       }
 
       dragSessionRef.current = session
-      setDragSession(session)
+      containerRef.current?.classList.add('native-dnd-board--dragging')
+      target.classList.add('dnd-card--dragging')
+      target.setAttribute('aria-grabbed', 'true')
 
       const initialOver = getDropIndex(
         startY,
@@ -179,94 +217,69 @@ export function NativeDndProvider({
         layoutRects.length
       )
       overIndexRef.current = initialOver
-      setOverIndex(initialOver)
-
+      applyCardShifts(session, initialOver)
       applyDragTransform(0)
+
+      const onPointerMove = (ev: PointerEvent) => {
+        const active = dragSessionRef.current
+        if (!active || ev.pointerId !== active.pointerId) return
+
+        const currentY = clampY(ev.clientY, active.layoutRects)
+
+        if (Math.abs(currentY - active.startY) > CLICK_DRAG_THRESHOLD) {
+          suppressClickRef.current = true
+        }
+
+        applyDragTransform(currentY - active.startY)
+        updateOverIndex(active, currentY)
+      }
+
+      const onPointerEnd = (ev: PointerEvent) => {
+        const active = dragSessionRef.current
+        if (!active || ev.pointerId !== active.pointerId) return
+
+        const currentY = clampY(ev.clientY, active.layoutRects)
+        const toIndex = getDropIndex(
+          currentY,
+          active.layoutRects[0].top,
+          active.itemStride,
+          active.layoutRects.length
+        )
+
+        removePointerListeners()
+        clearDragVisuals()
+        finishDrag(active, toIndex)
+      }
+
+      removePointerListeners()
+      pointerListenersRef.current = { move: onPointerMove, end: onPointerEnd }
+      window.addEventListener('pointermove', onPointerMove)
+      window.addEventListener('pointerup', onPointerEnd)
+      window.addEventListener('pointercancel', onPointerEnd)
+
       e.preventDefault()
     },
-    [disabled, snapshotLayoutRects, applyDragTransform]
+    [
+      disabled,
+      snapshotLayoutRects,
+      applyDragTransform,
+      applyCardShifts,
+      updateOverIndex,
+      removePointerListeners,
+      clearDragVisuals,
+      finishDrag,
+    ]
   )
 
-  const getShift = useCallback(
-    (index: number, isDragging: boolean) => {
-      if (!dragSession || overIndex === null) return 0
-      return getCardShift(
-        index,
-        dragSession.fromIndex,
-        overIndex,
-        dragSession.itemStride,
-        0,
-        isDragging
-      )
+  useEffect(
+    () => () => {
+      removePointerListeners()
+      clearDragVisuals()
     },
-    [dragSession, overIndex]
+    [removePointerListeners, clearDragVisuals]
   )
 
-  const finishDrag = useCallback(
-    (session: NonNullable<DragSession>, toIndex: number) => {
-      if (session.fromIndex !== toIndex) {
-        moveCard(session.fromIndex, toIndex)
-      }
-
-      const el = cardsRef.current.get(session.fromIndex)
-      if (el?.hasPointerCapture(session.pointerId)) {
-        el.releasePointerCapture(session.pointerId)
-      }
-    },
-    [moveCard]
-  )
-
-  useEffect(() => {
-    if (!dragSession) return
-
-    const onPointerMove = (e: PointerEvent) => {
-      const session = dragSessionRef.current
-      if (!session || e.pointerId !== session.pointerId) return
-
-      const currentY = clampY(e.clientY, session.layoutRects)
-      currentYRef.current = currentY
-
-      if (Math.abs(currentY - session.startY) > CLICK_DRAG_THRESHOLD) {
-        suppressClickRef.current = true
-      }
-
-      applyDragTransform(currentY - session.startY)
-      updateOverIndex(session, currentY)
-    }
-
-    const onPointerEnd = (e: PointerEvent) => {
-      const session = dragSessionRef.current
-      if (!session || e.pointerId !== session.pointerId) return
-
-      const currentY = clampY(e.clientY, session.layoutRects)
-      const toIndex = getDropIndex(
-        currentY,
-        session.layoutRects[0].top,
-        session.itemStride,
-        session.layoutRects.length
-      )
-
-      clearDragTransform()
-      dragSessionRef.current = null
-      overIndexRef.current = null
-      setDragSession(null)
-      setOverIndex(null)
-      finishDrag(session, toIndex)
-    }
-
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerEnd)
-    window.addEventListener('pointercancel', onPointerEnd)
-
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerEnd)
-      window.removeEventListener('pointercancel', onPointerEnd)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-bind when drag session starts
-  }, [dragSession?.pointerId, finishDrag, applyDragTransform, updateOverIndex, clearDragTransform])
-
-  const actionsValue = useMemo(
+  const value = useMemo(
     () => ({
       containerRef,
       startDrag,
@@ -276,20 +289,7 @@ export function NativeDndProvider({
     [startDrag, registerCard, consumeSuppressClick]
   )
 
-  const visualValue = useMemo(
-    () => ({
-      dragSession,
-      overIndex,
-      getShift,
-    }),
-    [dragSession, overIndex, getShift]
-  )
-
   return (
-    <NativeDndActionsContext.Provider value={actionsValue}>
-      <NativeDndVisualContext.Provider value={visualValue}>
-        {children}
-      </NativeDndVisualContext.Provider>
-    </NativeDndActionsContext.Provider>
+    <NativeDndContext.Provider value={value}>{children}</NativeDndContext.Provider>
   )
 }
